@@ -2,6 +2,7 @@
 
 import json
 import os
+import yaml
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Optional
@@ -53,7 +54,10 @@ class Config:
         # Load from file if provided
         if config_path and Path(config_path).exists():
             with open(config_path) as f:
-                data = json.load(f)
+                if str(config_path).endswith(('.yaml', '.yml')):
+                    data = yaml.safe_load(f)
+                else:
+                    data = json.load(f)
                 config = cls.from_dict(data)
         
         # Override with environment variables
@@ -67,6 +71,20 @@ class Config:
             raise ValueError("GITHUB_TOKEN environment variable is required")
         
         return config
+    
+    @classmethod
+    def from_file(cls, config_path: str) -> "Config":
+        """Load configuration from file only (no environment variables)."""
+        if not Path(config_path).exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
+        
+        with open(config_path) as f:
+            if str(config_path).endswith(('.yaml', '.yml')):
+                data = yaml.safe_load(f)
+            else:
+                data = json.load(f)
+        
+        return cls.from_dict(data)
     
     @classmethod
     def from_dict(cls, data: Dict) -> "Config":

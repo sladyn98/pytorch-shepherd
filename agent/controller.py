@@ -564,6 +564,12 @@ Please analyze the issue carefully and implement the appropriate solution. Follo
             env = os.environ.copy()
             env["ANTHROPIC_API_KEY"] = env.get("ANTHROPIC_API_KEY", "")
             
+            # Check if Claude CLI is available
+            try:
+                subprocess.run(["which", "claude"], check=True, capture_output=True)
+            except subprocess.CalledProcessError:
+                raise RuntimeError("Claude CLI not found in PATH. Please ensure Claude CLI is installed.")
+            
             # Run Claude CLI with dangerous permissions skip to enable automatic editing
             cmd = ["claude", "--dangerously-skip-permissions"]
             
@@ -842,6 +848,12 @@ Begin file modifications NOW."""
             # Set up environment
             env = os.environ.copy()
             env["ANTHROPIC_API_KEY"] = env.get("ANTHROPIC_API_KEY", "")
+            
+            # Check if Claude CLI is available
+            try:
+                subprocess.run(["which", "claude"], check=True, capture_output=True)
+            except subprocess.CalledProcessError:
+                raise RuntimeError("Claude CLI not found in PATH. Please ensure Claude CLI is installed.")
             
             # Run Claude CLI with dangerous permissions skip to enable automatic editing
             cmd = ["claude", "--dangerously-skip-permissions"]
