@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     procps \
     ripgrep \
+    jq \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js for MCP servers and Claude CLI

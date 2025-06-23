@@ -5,7 +5,7 @@ import os
 import yaml
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 
 @dataclass
@@ -15,6 +15,7 @@ class MCPConfig:
     pytorch_hud_server_command: list = field(default_factory=lambda: ["python3", "pytorch_hud_mcp_server.py"])
     startup_timeout: int = 30
     health_check_interval: int = 60
+    servers: Optional[Dict] = None  # Allow servers dict from YAML for compatibility
 
 
 @dataclass
@@ -89,8 +90,17 @@ class Config:
     @classmethod
     def from_dict(cls, data: Dict) -> "Config":
         """Create config from dictionary."""
+        # Handle MCP config safely
+        mcp_data = data.get("mcp", {})
+        if "servers" in mcp_data and "github_server_command" not in mcp_data:
+            # Convert YAML servers format to expected format
+            mcp_config = MCPConfig(servers=mcp_data.get("servers"))
+        else:
+            # Use existing format
+            mcp_config = MCPConfig(**{k: v for k, v in mcp_data.items() if k != "servers"})
+            
         return cls(
-            mcp=MCPConfig(**data.get("mcp", {})),
+            mcp=mcp_config,
             claude=ClaudeConfig(**data.get("claude", {})),
             agent=AgentConfig(**data.get("agent", {})),
             github_token=data.get("github_token"),
