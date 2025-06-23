@@ -98,11 +98,20 @@ class Config:
         else:
             # Use existing format
             mcp_config = MCPConfig(**{k: v for k, v in mcp_data.items() if k != "servers"})
+        
+        # Handle agent config with field name mapping
+        agent_data = data.get("agent", {})
+        # Map YAML field names to class field names
+        if "max_fix_attempts" in agent_data:
+            agent_data["max_attempts"] = agent_data.pop("max_fix_attempts")
+        # Filter out unknown fields for agent config
+        agent_fields = {"max_attempts", "monitoring_interval", "state_file", "backup_interval", "max_errors_per_batch"}
+        agent_config_data = {k: v for k, v in agent_data.items() if k in agent_fields}
             
         return cls(
             mcp=mcp_config,
             claude=ClaudeConfig(**data.get("claude", {})),
-            agent=AgentConfig(**data.get("agent", {})),
+            agent=AgentConfig(**agent_config_data),
             github_token=data.get("github_token"),
         )
     
