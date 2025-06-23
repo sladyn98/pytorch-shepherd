@@ -43,11 +43,12 @@ RUN useradd -m -s /bin/bash -u 1000 agent && \
     chmod -R 777 /pytorch /app/state && \
     chown -R agent:agent /pytorch
 
-# Configure Git for the agent user
+# Configure Git for the agent user (will be overridden by init script)
 RUN git config --global user.name "PyTorch Issue Agent" && \
     git config --global user.email "pytorch-agent@example.com" && \
     git config --global init.defaultBranch main && \
-    git config --global credential.helper store
+    git config --global credential.helper store && \
+    git config --global pull.rebase false
 
 # Switch to non-root user for Claude CLI security requirements
 USER agent

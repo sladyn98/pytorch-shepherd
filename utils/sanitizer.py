@@ -83,13 +83,35 @@ class ContentSanitizer:
         "This implementation should": "This implementation will",
     }
     
+    # Common typo corrections for commit messages
+    TYPO_CORRECTIONS = {
+        r'\bAddind\b': 'Adding',
+        r'\bFxing\b': 'Fixing',
+        r'\bUpating\b': 'Updating',
+        r'\bImplmenting\b': 'Implementing',
+        r'\bImproving\b': 'Improving',
+        r'\bRefctoring\b': 'Refactoring',
+        r'\bOptimzing\b': 'Optimizing',
+        r'\bEnhacing\b': 'Enhancing',
+        r'\bConfigurng\b': 'Configuring',
+        r'\bIntegratng\b': 'Integrating',
+        r'\bRemovng\b': 'Removing',
+        r'\bReslving\b': 'Resolving',
+        r'\bCorrectng\b': 'Correcting',
+        r'\bResolvng\b': 'Resolving',
+    }
+
     @classmethod
     def sanitize_commit_message(cls, message: str) -> str:
-        """Sanitize commit message to remove AI references."""
+        """Sanitize commit message to remove AI references and fix common typos."""
         # Remove Claude/AI patterns
         sanitized = message
         for pattern in cls.CLAUDE_PATTERNS:
             sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE)
+        
+        # Fix common typos
+        for typo_pattern, correction in cls.TYPO_CORRECTIONS.items():
+            sanitized = re.sub(typo_pattern, correction, sanitized, flags=re.IGNORECASE)
         
         # Replace AI phrases with natural alternatives
         for ai_phrase, replacement in cls.NATURAL_REPLACEMENTS.items():

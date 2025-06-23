@@ -3,9 +3,11 @@
 import asyncio
 import logging
 import os
+import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from mcp.client_manager import MCPClientManager
 from mcp.github_client import GitHubMCPClient
@@ -483,10 +485,13 @@ class IssueFixingAgent:
         if self.git_ops:
             status = self.git_ops.get_status()
             changed_files = [f["file"] for f in status["files"] if f["status"].strip()]
-            self.context.generated_files = changed_files
+            
+            # Validate and clean up unwanted files
+            validated_files = self._validate_and_cleanup_files(changed_files)
+            self.context.generated_files = validated_files
             
             # Commit changes if any were made
-            if changed_files and not self.dry_run:
+            if validated_files and not self.dry_run:
                 # Generate commit message based on issue title
                 issue_title = self.context.issue_data.get("issue", {}).get("title", "Fix issue")
                 commit_message = f"Fix issue #{self.issue_number}: {issue_title}"
@@ -888,3 +893,52 @@ Begin file modifications NOW."""
         except Exception as e:
             self.logger.error(f"Failed to run Claude CLI review fix: {e}")
             return False
+    
+    def _validate_and_cleanup_files(self, changed_files: List[str]) -> List[str]:
+        """Validate and clean up files to remove unwanted test files."""
+        validated_files = []
+        unwanted_patterns = [
+            r'test_.*\.py$',
+            r'.*_test\.py$', 
+            r'.*/test/.*\.py$',
+            r'.*test.*\.py$',
+            r'.*example.*\.py$',
+            r'.*demo.*\.py$',
+            r'.*standalone.*\.py$',
+            r'.*usage.*\.py$',
+            r'.*rope.*\.py$',
+            r'.*basic.*\.py$',
+            r'.*validation.*\.py$'
+        ]
+        
+        for file_path in changed_files:
+            is_unwanted = False
+            
+            # Check against unwanted patterns
+            for pattern in unwanted_patterns:
+                if re.match(pattern, file_path, re.IGNORECASE):
+                    is_unwanted = True
+                    self.logger.warning(f"Removing unwanted file: {file_path}")
+                    
+                    # Remove the file if it exists and not in dry run
+                    if not self.dry_run and self.git_ops:
+                        try:
+                            file_full_path = os.path.join(self.local_repo_path, file_path)
+                            if os.path.exists(file_full_path):
+                                os.remove(file_full_path)
+                                self.logger.info(f"Deleted unwanted file: {file_path}")
+                            
+                            # Remove from git tracking
+                            self.git_ops._run_git_command(["rm", "--cached", file_path])
+                        except Exception as e:
+                            self.logger.warning(f"Failed to remove unwanted file {file_path}: {e}")
+                    break
+            
+            if not is_unwanted:
+                validated_files.append(file_path)
+        
+        removed_count = len(changed_files) - len(validated_files)
+        if removed_count > 0:
+            self.logger.info(f"Removed {removed_count} unwanted files, kept {len(validated_files)} valid files")
+        
+        return validated_files

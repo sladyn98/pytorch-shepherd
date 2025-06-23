@@ -17,19 +17,23 @@ fix_issue:
     
     Working Directory: {working_dir}
     
-    CRITICAL CONSTRAINTS:
-    1. **DO NOT create new test files** (paths matching `test/`, `*_test.py`, `test_*.py`) unless a human reviewer explicitly requests it in a comment
-       • DO NOT create test_fix.py or any other test scripts
-       • DO NOT create example files or demo scripts
-       • DO NOT create files with names like: *example*.py, *usage*.py, *standalone*.py, *demo*.py, rope_*.py
-       • DO NOT create validation, testing, or demonstration files
-    2. **Avoid creating brand-new helper modules**; prefer adding functions or classes inside existing files
-       • Only create a fresh file when the issue description clearly requires it
+    CRITICAL CONSTRAINTS - THESE ARE MANDATORY:
+    1. **ABSOLUTELY NO TEST FILE CREATION** - This is strictly forbidden:
+       • NEVER create any files with paths matching: `test/`, `*_test.py`, `test_*.py`, `*test*.py`
+       • NEVER create test_*.py, *_test.py, test*.py files anywhere in the codebase
+       • NEVER create example files, demo scripts, validation files, or standalone test scripts
+       • NEVER create files named: *example*.py, *usage*.py, *standalone*.py, *demo*.py, *rope*.py, *basic*.py
+       • NEVER create any files in test/ directories
+       • VIOLATION OF THIS RULE WILL CAUSE IMMEDIATE FAILURE
+    2. **NO NEW FILE CREATION** unless the specific issue explicitly requires it:
+       • ONLY modify existing source files to implement the requested functionality
+       • If you must create a file, it MUST be in torch/, aten/, or c10/ directories for core functionality
+       • NEVER create helper modules, utilities, or additional tooling
     3. **Fix linter/formatting errors FIRST** (ruff/flake8/black/mypy) so CI can reach the test phase quickly
-    4. **Make MINIMAL, targeted changes** - fix ONLY the specific errors mentioned
-    5. **Maintain existing code style** and patterns
-    6. **DO NOT add validation scripts, helper utilities, or extra tooling**
-    7. **ONLY modify existing source files** to fix the issue - no new files unless absolutely necessary
+    4. **Make MINIMAL, targeted changes** - fix ONLY the specific errors mentioned in the issue
+    5. **Maintain existing code style** and patterns - follow PyTorch conventions exactly
+    6. **NO validation scripts, helper utilities, or extra tooling**
+    7. **ONLY implement the core functionality** requested in the issue - nothing more
     
     PYTORCH CODEBASE STRUCTURE:
     - `c10/`: Core library files

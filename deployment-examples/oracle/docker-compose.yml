@@ -5,21 +5,21 @@ services:
     build: 
       context: ../..
       dockerfile: Dockerfile
-    container_name: pytorch-issue-agent
+    container_name: pytorch-issue-agent-${ISSUE_NUMBER:-default}
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITHUB_USERNAME=${GITHUB_USERNAME}
       - PYTORCH_REPO_PATH=/pytorch
     volumes:
-      - pytorch-repo:/pytorch
-      - agent-state:/app/state
+      - pytorch-repo-${ISSUE_NUMBER:-default}:/pytorch
+      - agent-state-${ISSUE_NUMBER:-default}:/app/state
     restart: unless-stopped
     working_dir: /app
     command: ["python", "main.py", "${ISSUE_NUMBER}", "--local-repo-path", "/pytorch"]
 
 volumes:
-  pytorch-repo:
+  pytorch-repo-${ISSUE_NUMBER:-default}:
     driver: local
-  agent-state:
+  agent-state-${ISSUE_NUMBER:-default}:
     driver: local

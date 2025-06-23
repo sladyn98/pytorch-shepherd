@@ -26,9 +26,14 @@ else
     cd "$PYTORCH_REPO_PATH"
     
     # Set up git config for commits (use environment variables if available)
-    git config user.name "${GIT_USER_NAME:-PyTorch Issue Agent}"
-    git config user.email "${GIT_USER_EMAIL:-agent@pytorch.dev}"
+    git config user.name "${GIT_USER_NAME:-$GITHUB_USERNAME}"
+    git config user.email "${GIT_USER_EMAIL:-$GITHUB_USERNAME@users.noreply.github.com}"
 fi
+
+# Always set up git config even if we fetched existing repo
+cd "$PYTORCH_REPO_PATH"
+git config user.name "${GIT_USER_NAME:-$GITHUB_USERNAME}"
+git config user.email "${GIT_USER_EMAIL:-$GITHUB_USERNAME@users.noreply.github.com}"
 
 # Set up GitHub authentication if token is provided
 if [ -n "$GITHUB_TOKEN" ] && [ -n "$GITHUB_USERNAME" ]; then
@@ -37,6 +42,7 @@ if [ -n "$GITHUB_TOKEN" ] && [ -n "$GITHUB_USERNAME" ]; then
     echo "https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com" > ~/.git-credentials
     git config --global credential.helper store
     echo "GitHub authentication configured successfully!"
+    echo "Git user configured as: $(git config user.name) <$(git config user.email)>"
 else
     echo "Warning: GITHUB_TOKEN or GITHUB_USERNAME not provided - Git pushes may fail"
 fi
