@@ -1,0 +1,45 @@
+# Production Configuration for Oracle Cloud Deployment
+
+agent:
+  monitoring_interval: 7200  # 2 hours for production
+  max_attempts: 3
+  backup_interval: 3600
+  max_errors_per_batch: 10
+  state_file: "/app/state/agent_state.json"
+
+claude:
+  api_key: "${ANTHROPIC_API_KEY}"
+  model: "claude-3-sonnet-20240229" 
+  max_tokens: 4000
+  temperature: 0.1
+
+mcp:
+  github_server_command: ["npx", "@modelcontextprotocol/server-github"]
+  pytorch_hud_server_command: ["python", "/app/pytorch_hud_mcp_server.py"]
+
+git:
+  user_name: "PyTorch Issue Agent"
+  user_email: "agent@pytorch.dev"
+
+repository:
+  owner: "pytorch"
+  name: "pytorch"
+  url: "https://github.com/pytorch/pytorch.git"
+  local_path: "/pytorch"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s [%(name)s] [%(levelname)s] %(message)s"
+  max_size_mb: 100
+
+security:
+  timeout_limits:
+    claude_cli: 600  # 10 minutes
+    git_operations: 60  # 1 minute
+    search_operations: 30  # 30 seconds
+  
+  resource_limits:
+    max_concurrent_processes: 2
+    max_memory_mb: 2048
+    max_repo_size_gb: 5
+    max_log_size_mb: 100

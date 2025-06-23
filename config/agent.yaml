@@ -1,0 +1,54 @@
+# PyTorch Issue Agent Configuration
+
+# Agent behavior settings
+agent:
+  monitoring_interval: 3600  # seconds
+  max_fix_attempts: 10
+  timeout:
+    claude_cli: 1800  # 30 minutes
+    operation: 300    # 5 minutes
+  
+  # Branch naming pattern
+  branch_pattern: "fix-issue-{issue_number}-attempt-{attempt_count}"
+  
+  # Retry configuration
+  retry:
+    max_attempts: 3
+    delay: 30  # seconds
+    backoff_multiplier: 2
+
+# Git configuration
+git:
+  default_branch: "main"
+  user:
+    name: "PyTorch Issue Agent"
+    email: "agent@pytorch.dev"
+
+# Repository settings
+repository:
+  owner: "pytorch"
+  name: "pytorch"
+  url: "https://github.com/pytorch/pytorch.git"
+  local_path: "/pytorch"
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s [%(name)s] [%(levelname)s] %(message)s"
+  
+# Claude API configuration
+claude:
+  model: "claude-3-5-sonnet-20241022"
+  max_tokens: 4096
+  temperature: 0.1
+  max_retries: 3
+  retry_delay: 10  # seconds
+
+# MCP server configuration
+mcp:
+  servers:
+    github:
+      enabled: true
+    pytorch_hud:
+      enabled: true
+      mock_mode: false  # Set to true for development

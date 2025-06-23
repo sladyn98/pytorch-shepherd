@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  pytorch-issue-agent:
+    build: 
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: pytorch-issue-agent
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_USERNAME=${GITHUB_USERNAME}
+      - PYTORCH_REPO_PATH=/pytorch
+    volumes:
+      - pytorch-repo:/pytorch
+      - agent-state:/app/state
+    restart: unless-stopped
+    working_dir: /app
+    command: ["python", "main.py", "${ISSUE_NUMBER}", "--local-repo-path", "/pytorch"]
+
+volumes:
+  pytorch-repo:
+    driver: local
+  agent-state:
+    driver: local
