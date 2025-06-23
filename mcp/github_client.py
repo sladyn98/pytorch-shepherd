@@ -428,13 +428,31 @@ class GitHubMCPClient:
     async def get_current_user(self) -> Optional[str]:
         """Get the current authenticated user's username."""
         try:
-            # Try searching for the authenticated user first
-            result = await self.client_manager.call_tool(
-                "github",
-                "search_users",
-                {"q": "type:user"}
-            )
+            # Use direct GitHub API call to get current user
+            import aiohttp
+            import os
             
+            github_token = os.getenv("GITHUB_TOKEN")
+            if not github_token:
+                self.logger.error("GITHUB_TOKEN not found in environment")
+                return None
+            
+            async with aiohttp.ClientSession() as session:
+                headers = {
+                    "Authorization": f"token {github_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": "PyTorch-Issue-Agent"
+                }
+                
+                async with session.get("https://api.github.com/user", headers=headers) as response:
+                    if response.status == 200:
+                        user_data = await response.json()
+                        username = user_data.get("login")
+                        if username:
+                            self.logger.info(f"Authenticated as GitHub user: {username}")
+                            return username
+                    else:
+                        self.logger.error(f"GitHub API returned status {response.status}: {await response.text()}")
             
             # Fallback: try to get from git configuration
             import subprocess
