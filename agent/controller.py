@@ -189,20 +189,75 @@ class IssueFixingAgent:
             
             if fork_check_result.get("exists", False):
                 self.logger.info(f"Fork already exists for user: {github_username}")
-                return
-            
-            # Create fork
-            self.logger.info(f"Creating fork for user: {github_username}")
-            fork_result = await self.github_client.create_fork()
-            
-            if fork_result.get("success", False):
-                self.logger.info("Successfully created fork")
             else:
-                self.logger.warning(f"Fork creation result unclear: {fork_result}")
+                # Create fork
+                self.logger.info(f"Creating fork for user: {github_username}")
+                fork_result = await self.github_client.create_fork()
+                
+                if fork_result.get("success", False):
+                    self.logger.info("Successfully created fork")
+                else:
+                    self.logger.warning(f"Fork creation result unclear: {fork_result}")
+            
+            # Configure git remotes to use the fork for pushing
+            await self._configure_fork_remotes(github_username)
                 
         except Exception as e:
             self.logger.error(f"Failed to ensure fork exists: {e}")
             # Don't raise here - fork creation might not be critical for some operations
+    
+    async def _configure_fork_remotes(self, github_username: str):
+        """Configure git remotes to use the user's fork for pushing."""
+        try:
+            if not self.local_repo_path:
+                self.logger.warning("No local repo path, skipping git remote configuration")
+                return
+            
+            import subprocess
+            repo_path = Path(self.local_repo_path)
+            
+            # Check current remotes
+            result = subprocess.run(
+                ["git", "-C", str(repo_path), "remote", "-v"],
+                capture_output=True, text=True, timeout=30
+            )
+            
+            if result.returncode == 0:
+                self.logger.info(f"Current git remotes:\n{result.stdout}")
+            
+            # Add fork as 'fork' remote if it doesn't exist
+            fork_url = f"https://github.com/{github_username}/pytorch.git"
+            
+            # Remove existing fork remote if it exists
+            subprocess.run(
+                ["git", "-C", str(repo_path), "remote", "remove", "fork"],
+                capture_output=True, text=True, timeout=30
+            )
+            
+            # Add fork remote
+            result = subprocess.run(
+                ["git", "-C", str(repo_path), "remote", "add", "fork", fork_url],
+                capture_output=True, text=True, timeout=30
+            )
+            
+            if result.returncode == 0:
+                self.logger.info(f"Successfully added fork remote: {fork_url}")
+                
+                # Configure origin to point to fork for pushing
+                result = subprocess.run(
+                    ["git", "-C", str(repo_path), "remote", "set-url", "--push", "origin", fork_url],
+                    capture_output=True, text=True, timeout=30
+                )
+                
+                if result.returncode == 0:
+                    self.logger.info("Successfully configured origin push URL to fork")
+                else:
+                    self.logger.error(f"Failed to set push URL: {result.stderr}")
+            else:
+                self.logger.error(f"Failed to add fork remote: {result.stderr}")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to configure fork remotes: {e}")
     
     async def _initialize_local_operations(self):
         """Initialize local operations after ensuring repository exists."""
