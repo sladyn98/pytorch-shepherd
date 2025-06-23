@@ -332,6 +332,44 @@ class IssueFixingAgent:
             self.logger.warning(f"PyTorch HUD MCP initialization failed: {e}")
         
         self.logger.info("MCP servers initialization completed")
+        
+        # Validate GitHub authentication early
+        await self._validate_github_authentication()
+    
+    async def _validate_github_authentication(self):
+        """Validate GitHub authentication works before starting workflow."""
+        self.logger.info("Validating GitHub authentication...")
+        
+        try:
+            # Test basic GitHub API access through MCP
+            current_user = await self.github_client.get_current_user()
+            if not current_user:
+                raise RuntimeError("Failed to get current user - GitHub token may be invalid")
+            
+            self.logger.info(f"GitHub authentication successful - User: {current_user}")
+            
+            # Validate we can access the pytorch/pytorch repository  
+            repo_check = await self.mcp_manager.call_tool(
+                "github", 
+                "get_repository", 
+                {"owner": "pytorch", "repo": "pytorch"}
+            )
+            if not repo_check or "repository" not in repo_check:
+                raise RuntimeError("Cannot access pytorch/pytorch repository")
+            
+            self.logger.info("GitHub repository access validated")
+            
+            # Check if user has a fork or can create one
+            github_username = os.getenv("GITHUB_USERNAME")
+            if github_username:
+                self.logger.info(f"Checking fork permissions for user: {github_username}")
+                # Test fork check (will validate permissions without creating)
+                fork_check = await self.github_client.check_fork_exists(github_username)
+                self.logger.info(f"Fork check result: {fork_check}")
+            
+        except Exception as e:
+            self.logger.error(f"GitHub authentication validation failed: {e}")
+            raise RuntimeError(f"GitHub authentication failed: {e}. Please check your GITHUB_TOKEN.")
     
     async def _load_or_create_state(self):
         """Load existing state or create new one."""
@@ -581,7 +619,7 @@ Please analyze the issue carefully and implement the appropriate solution. Follo
                 env=env,
                 capture_output=True,
                 text=True,
-                timeout=600  # 10 minutes timeout - reduced from 30 minutes
+                timeout=None  # No timeout - let Claude CLI take as long as needed
             )
             
             if result.returncode == 0:
@@ -867,7 +905,7 @@ Begin file modifications NOW."""
                     env=env,
                     capture_output=True,
                     text=True,
-                    timeout=600  # 10 minutes timeout
+                    timeout=None  # No timeout - let Claude CLI take as long as needed
                 )
             except subprocess.TimeoutExpired as e:
                 self.logger.warning(f"Claude CLI timed out after {e.timeout}s, killing any remaining processes...")
