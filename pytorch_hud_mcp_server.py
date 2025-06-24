@@ -8,9 +8,105 @@ import asyncio
 import json
 import sys
 import logging
+import os
+import httpx
+from typing import List, Dict, Any
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+async def get_failing_tests_from_hud(pr_number: int) -> List[Dict[str, Any]]:
+    """Query PyTorch HUD API for failing tests."""
+    try:
+        # Use the actual HUD API endpoints
+        hud_api_url = "https://hud.pytorch.org/api/pytorch/pytorch"
+        
+        async with httpx.AsyncClient() as client:
+            # Get commit information for PR
+            pr_commits_response = await client.get(
+                f"{hud_api_url}/pr/{pr_number}",
+                timeout=30.0
+            )
+            
+            if pr_commits_response.status_code != 200:
+                logger.warning(f"Failed to get PR commits for #{pr_number}: {pr_commits_response.status_code}")
+                return []
+            
+            pr_commits_data = pr_commits_response.json()
+            
+            # Get the latest commit SHA
+            if not pr_commits_data or "shas" not in pr_commits_data or not pr_commits_data["shas"]:
+                logger.warning(f"No commits found for PR #{pr_number}")
+                return []
+            
+            latest_sha = pr_commits_data["shas"][0][0]  # First element is [sha, message]
+            logger.info(f"Getting failures for PR #{pr_number}, commit {latest_sha}")
+            
+            # Get job failures for the commit
+            failures_response = await client.get(
+                f"{hud_api_url}/commit/{latest_sha}/job_statuses",
+                timeout=30.0
+            )
+            
+            if failures_response.status_code != 200:
+                logger.warning(f"Failed to get job statuses for commit {latest_sha}: {failures_response.status_code}")
+                return []
+            
+            job_data = failures_response.json()
+            
+            # Extract failing tests from job data
+            failing_tests = []
+            seen_tests = set()
+            
+            for job in job_data:
+                if job.get("conclusion") == "failure":
+                    job_name = job.get("name", "")
+                    
+                    # Look for test failures in failure captures
+                    if "failureCaptures" in job:
+                        for capture in job["failureCaptures"]:
+                            if capture and "::" in capture:
+                                # Parse test name from pytest format
+                                test_parts = capture.split("::", 1)
+                                test_file = test_parts[0].replace("/", ".").replace(".py", "")
+                                test_name = test_parts[1] if len(test_parts) > 1 else capture
+                                
+                                test_key = f"{test_file}::{test_name}"
+                                if test_key not in seen_tests:
+                                    seen_tests.add(test_key)
+                                    
+                                    # Extract error message from failure lines
+                                    error_message = ""
+                                    if "failureLines" in job:
+                                        for line in job["failureLines"]:
+                                            if "FAILED" in line and test_name in line:
+                                                error_message = line.split(" - ", 1)[1] if " - " in line else line
+                                                break
+                                    
+                                    test_info = {
+                                        "name": test_key,
+                                        "test_name": test_name,
+                                        "suite": test_file,
+                                        "workflow": job.get("workflowName", ""),
+                                        "job_name": job_name,
+                                        "error_message": error_message or "Test failed",
+                                        "failure_message": error_message or "Test failed",
+                                        "log_url": job.get("logUrl", ""),
+                                        "status": "failed",
+                                        "file_path": test_parts[0] if test_parts else "",
+                                        "duration": None,
+                                        "traceback": None,
+                                        "line_number": None
+                                    }
+                                    failing_tests.append(test_info)
+            
+            logger.info(f"Found {len(failing_tests)} failing tests for PR #{pr_number}")
+            return failing_tests
+            
+    except Exception as e:
+        logger.error(f"Error querying HUD API: {e}")
+        return []
 
 
 async def handle_request(request_line: str) -> str:
@@ -72,18 +168,10 @@ async def handle_request(request_line: str) -> str:
             if tool_name == "get_failing_tests":
                 pr_number = arguments.get("pr_number", 0)
                 
-                # In a real implementation, this would query the actual PyTorch HUD API
-                # For now, return an empty list or mock data based on environment
-                failing_tests = []
+                # Query the actual PyTorch HUD API
+                failing_tests = await get_failing_tests_from_hud(pr_number)
                 
-                # If in development/testing mode, you might want to load test data from a file
-                import os
-                if os.getenv('PYTORCH_HUD_MOCK_MODE'):
-                    import json
-                    mock_file = os.getenv('PYTORCH_HUD_MOCK_FILE', 'mock_test_failures.json')
-                    if os.path.exists(mock_file):
-                        with open(mock_file) as f:
-                            failing_tests = json.load(f)
+# No mock mode - always use real API data
                 
                 result = {
                     "failing_tests": failing_tests,

@@ -427,6 +427,10 @@ class IssueFixingAgent:
             
         except Exception as e:
             self.logger.warning(f"GitHub authentication validation had issues: {e}, but continuing execution")
+            self.logger.info("Note: The agent can still function with limited GitHub API access:")
+            self.logger.info("- PyTorch HUD API will be used for monitoring test failures")
+            self.logger.info("- Git operations will use token-based authentication if GITHUB_TOKEN is set")
+            self.logger.info("- Some GitHub API features may be unavailable")
     
     async def _load_or_create_state(self):
         """Load existing state or create new one."""

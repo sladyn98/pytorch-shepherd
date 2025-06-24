@@ -1,5 +1,6 @@
 """Git operations for local PyTorch repository management."""
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -17,6 +18,39 @@ class GitOperations:
             raise ValueError(f"Repository path does not exist: {repo_path}")
         if not (self.repo_path / ".git").exists():
             raise ValueError(f"Not a git repository: {repo_path}")
+        
+        # Setup git authentication if available
+        self._setup_authentication()
+    
+    def _setup_authentication(self):
+        """Setup git authentication from environment variables."""
+        try:
+            github_token = os.environ.get('GITHUB_TOKEN')
+            github_username = os.environ.get('GITHUB_USERNAME', 'pytorch-agent')
+            
+            if github_token:
+                logger.info("Setting up git authentication from environment")
+                
+                # Configure git to use the token for HTTPS operations
+                # This works on any machine without manual setup
+                result = self._run_git_command(['config', '--local', 'credential.helper', 'store'])
+                if result and result.returncode == 0:
+                    # Create credentials file in repo-specific location
+                    creds_path = self.repo_path / '.git' / 'credentials'
+                    with open(creds_path, 'w') as f:
+                        f.write(f'https://{github_username}:{github_token}@github.com\n')
+                    os.chmod(creds_path, 0o600)  # Secure the file
+                    
+                    # Tell git to use this specific credentials file
+                    self._run_git_command(['config', '--local', 'credential.helper', f'store --file={creds_path}'])
+                    logger.info("Git authentication configured successfully")
+                else:
+                    logger.warning("Failed to configure git credential helper")
+            else:
+                logger.warning("GITHUB_TOKEN not found in environment - git push may fail")
+                
+        except Exception as e:
+            logger.warning(f"Failed to setup git authentication: {e}")
     
     def _run_git_command(self, cmd: List[str], timeout: int = 60) -> Optional[subprocess.CompletedProcess]:
         """Run a git command and return the result."""
@@ -174,7 +208,7 @@ class GitOperations:
             return False
     
     def push_branch(self, branch_name: str, set_upstream: bool = True) -> bool:
-        """Push branch to origin."""
+        """Push branch to origin with robust error handling."""
         try:
             cmd = ["push"]
             if set_upstream:
@@ -187,7 +221,28 @@ class GitOperations:
                 logger.info(f"Pushed branch: {branch_name}")
                 return True
             else:
-                logger.error(f"Failed to push branch {branch_name}: {result.stderr if result else 'Unknown error'}")
+                error_msg = result.stderr if result else 'Unknown error'
+                logger.error(f"Failed to push branch {branch_name}: {error_msg}")
+                
+                # Check if it's an authentication error
+                if result and ('authentication' in error_msg.lower() or 
+                              'permission' in error_msg.lower() or 
+                              'credentials' in error_msg.lower()):
+                    logger.error("Git push failed due to authentication. Please ensure:")
+                    logger.error("1. GITHUB_TOKEN environment variable is set with a valid token")
+                    logger.error("2. The token has 'repo' scope permissions")
+                    logger.error("3. GITHUB_USERNAME is set to your GitHub username")
+                    
+                    # Try to re-setup authentication and retry once
+                    logger.info("Attempting to reconfigure authentication...")
+                    self._setup_authentication()
+                    
+                    # Retry the push
+                    retry_result = self._run_git_command(cmd, timeout=120)
+                    if retry_result and retry_result.returncode == 0:
+                        logger.info(f"Successfully pushed branch after reconfiguring auth: {branch_name}")
+                        return True
+                
                 return False
                 
         except Exception as e:
