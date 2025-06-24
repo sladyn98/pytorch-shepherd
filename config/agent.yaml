@@ -2,7 +2,7 @@
 
 # Agent behavior settings
 agent:
-  monitoring_interval: 3600  # seconds
+  monitoring_interval: 7200  # seconds (2 hours)
   max_fix_attempts: 10
   timeout:
     claude_cli: 1800  # 30 minutes
