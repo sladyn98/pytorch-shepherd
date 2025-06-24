@@ -57,6 +57,16 @@ class GitHubMCPClient:
         self.repo = repo
         self.logger = logging.getLogger(__name__)
     
+    def _validate_pr_number(self, pr_number) -> int:
+        """Validate and convert pr_number to integer to avoid MCP parameter validation errors."""
+        if pr_number is None:
+            raise ValueError("pr_number cannot be None")
+        
+        try:
+            return int(pr_number)
+        except (ValueError, TypeError):
+            raise ValueError(f"pr_number must be a valid integer, got: {pr_number} (type: {type(pr_number)})")
+    
     async def get_issue(self, issue_number: int) -> Optional[GitHubIssue]:
         """Get issue details."""
         try:
@@ -236,13 +246,15 @@ class GitHubMCPClient:
     async def get_pull_request(self, pr_number: int) -> Optional[GitHubPR]:
         """Get pull request details."""
         try:
+            pr_number_int = self._validate_pr_number(pr_number)
+            
             result = await self.client_manager.call_tool(
                 "github",
                 "get_pull_request",
                 {
                     "owner": self.repo.split("/")[0],
                     "repo": self.repo.split("/")[1],
-                    "pull_number": pr_number
+                    "pull_number": pr_number_int
                 }
             )
             
@@ -271,13 +283,15 @@ class GitHubMCPClient:
     async def get_pr_comments(self, pr_number: int) -> List[GitHubComment]:
         """Get pull request review comments."""
         try:
+            pr_number_int = self._validate_pr_number(pr_number)
+            
             result = await self.client_manager.call_tool(
                 "github",
                 "get_pull_request_comments",
                 {
                     "owner": self.repo.split("/")[0],
                     "repo": self.repo.split("/")[1],
-                    "pull_number": pr_number
+                    "pull_number": pr_number_int
                 }
             )
             
@@ -488,13 +502,15 @@ class GitHubMCPClient:
         # Fallback to MCP API
         try:
             self.logger.info(f"Fallback: Getting CI status for PR {pr_number} using MCP")
+            pr_number_int = self._validate_pr_number(pr_number)
+            
             result = await self.client_manager.call_tool(
                 "github",
                 "get_pull_request_status",
                 {
                     "owner": self.repo.split("/")[0],
                     "repo": self.repo.split("/")[1],
-                    "pull_number": pr_number
+                    "pull_number": pr_number_int
                 }
             )
             

@@ -254,7 +254,10 @@ class MCPClientManager:
                         future = self._pending_requests.pop(request_id)
                         
                         if "error" in response:
-                            future.set_exception(RuntimeError(response["error"]["message"]))
+                            error_info = response["error"]
+                            # Log error details for debugging
+                            self.logger.error(f"MCP Server {server.name} returned error: {json.dumps(error_info, indent=2)}")
+                            future.set_exception(RuntimeError(error_info["message"]))
                         else:
                             future.set_result(response.get("result", {}))
                     

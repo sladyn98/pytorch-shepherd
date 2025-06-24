@@ -15,7 +15,7 @@ claude:
 
 mcp:
   github_server_command: ["npx", "@modelcontextprotocol/server-github"]
-  pytorch_hud_server_command: ["python", "/app/pytorch_hud_mcp_server.py"]
+  pytorch_hud_server_command: ["python", "-m", "pytorch_hud"]
 
 git:
   user_name: "PyTorch Issue Agent"

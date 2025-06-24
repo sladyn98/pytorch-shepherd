@@ -362,29 +362,8 @@ class IssueFixingAgent:
         except Exception as e:
             self.logger.error(f"Failed to list GitHub tools: {e}")
         
-        # Start PyTorch HUD MCP server
-        try:
-            # Use our PyTorch HUD MCP server
-            import sys
-            import os
-            venv_python = sys.executable
-            server_path = os.path.join(os.path.dirname(__file__), "..", "pytorch_hud_mcp_server.py")
-            pytorch_hud_command = [venv_python, server_path]
-            if await self.mcp_manager.start_server("pytorch_hud", pytorch_hud_command):
-                pytorch_hud_health = await self.mcp_manager.health_check("pytorch_hud")
-                if pytorch_hud_health:
-                    try:
-                        tools = await self.mcp_manager.list_tools("pytorch_hud")
-                        self.logger.info(f"PyTorch HUD MCP tools available: {[t.get('name') for t in tools]}")
-                        self.logger.info("PyTorch HUD MCP server initialized successfully")
-                    except Exception as e:
-                        self.logger.warning(f"Failed to list PyTorch HUD tools: {e}")
-                else:
-                    self.logger.warning("PyTorch HUD MCP server is not healthy")
-            else:
-                self.logger.warning("Failed to start PyTorch HUD MCP server")
-        except Exception as e:
-            self.logger.warning(f"PyTorch HUD MCP initialization failed: {e}")
+        # PyTorch HUD client will use GitHub API directly instead of separate MCP server
+        self.logger.info("PyTorch HUD client will use GitHub API for test failure detection")
         
         self.logger.info("MCP servers initialization completed")
         
@@ -716,7 +695,7 @@ Please analyze the issue carefully and implement the appropriate solution. Follo
         
         if self.dry_run:
             self.logger.info("DRY RUN: Would create PR")
-            self.context.pr_number = 999999  # Mock PR number for dry run
+            raise RuntimeError("Dry run mode not supported - only real PR creation allowed")
             return
         
         # Get current user and create fork using direct API (workaround for MCP auth issues)
