@@ -362,8 +362,19 @@ class IssueFixingAgent:
         except Exception as e:
             self.logger.error(f"Failed to list GitHub tools: {e}")
         
-        # PyTorch HUD client will use GitHub API directly instead of separate MCP server
-        self.logger.info("PyTorch HUD client will use GitHub API for test failure detection")
+        # Start PyTorch HUD MCP server
+        if not await self.mcp_manager.start_server("pytorch_hud", self.config.mcp.pytorch_hud_server_command):
+            self.logger.warning("Failed to start PyTorch HUD MCP server - test failure detection may be limited")
+        else:
+            pytorch_hud_health = await self.mcp_manager.health_check("pytorch_hud")
+            if pytorch_hud_health:
+                try:
+                    tools = await self.mcp_manager.list_tools("pytorch_hud")
+                    self.logger.info(f"PyTorch HUD MCP tools available: {[t.get('name') for t in tools]}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to list PyTorch HUD tools: {e}")
+            else:
+                self.logger.warning("PyTorch HUD MCP server is not healthy")
         
         self.logger.info("MCP servers initialization completed")
         
